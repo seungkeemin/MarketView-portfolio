@@ -92,6 +92,8 @@ def test_merge_rows_newer_wins_for_observations_first_for_news(tmp_path):
 @pytest.fixture
 def repos(tmp_path, monkeypatch):
     """원격(bare) · 클라우드 러너(clone, cloud-data 브랜치에 커밋) · 로컬(clone, master)."""
+    for k, v in {"GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}.items():
+        monkeypatch.setenv(k, v)
     remote, runner, local = tmp_path / "remote.git", tmp_path / "runner", tmp_path / "local"
     subprocess.run(["git", "init", "-q", "--bare", "-b", "main", str(remote)], check=True)
     subprocess.run(["git", "clone", "-q", str(remote), str(local)], check=True, capture_output=True)
