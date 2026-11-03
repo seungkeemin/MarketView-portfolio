@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MarketView</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div id="app">
+  <header id="topbar">
+    <div class="clock" id="clock-kst"><span class="lbl">KST</span><span class="date" id="kst-date"></span><span class="time" id="kst-time"></span><span class="mkt" id="kr-mkt"></span></div>
+    <div class="clock" id="clock-ny"><span class="lbl">NY</span><span class="time" id="ny-time"></span><span class="mkt" id="us-mkt"></span></div>
+    <span class="sep"></span>
+    <span class="status"><span class="lbl">마지막 갱신</span> <b id="last-refresh">-</b></span>
+    <span class="status"><span class="lbl">클라우드 동기화</span> <b id="cloud-sync">-</b></span>
+    <button id="warn-btn" class="warn" hidden></button>
+    <button id="drive-btn" class="warn" hidden>Drive 복사 실패</button>
+    <span class="grow"></span>
+    <label class="asof"><span class="lbl">기준일</span><input type="date" id="asof"><button id="asof-clear" title="오늘로">오늘</button></label>
+    <button id="refresh-btn" title="새로고침 (R)">새로고침</button>
+    <button id="report-btn">리포트 생성</button>
+    <button id="settings-btn" title="설정">설정</button>
+  </header>
+  <div id="popover" hidden></div>
+
+  <div id="body">
+    <div id="left">
+      <section class="panel" id="main-panel">
+        <div class="panel-head">
+          <nav class="tabs" id="main-tabs"></nav>
+          <nav class="chips" id="group-chips"></nav>
+          <span class="grow"></span>
+          <span id="mode-pill" class="mode-pill"></span>
+          <div class="dsearch">
+            <button id="data-search-btn" class="icon-btn" title="지표 검색 ( / )" aria-label="지표 검색">
+              <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5"/><path d="M13 13l4.5 4.5"/></svg>
+            </button>
+            <input type="search" id="data-search" placeholder="지표 검색 (저장된 모든 지표)" autocomplete="off" spellcheck="false" aria-label="지표 검색" hidden>
+            <div id="data-results" hidden></div>
+          </div>
+        </div>
+        <div id="tiles" class="tiles"></div>
+        <div class="subhead">
+          <nav class="subtabs" id="sub-tabs"></nav>
+          <nav class="ranges" id="ranges"></nav>
+          <span class="hint" id="chart-hint"></span>
+          <span class="grow"></span>
+          <span id="curve-controls" class="curve-controls" hidden></span>
+          <button id="csv-btn" hidden>CSV 내보내기</button>
+        </div>
+        <div id="view" class="view"></div>
+      </section>
+      <div class="splitter h" data-split="views"></div>
+      <section class="panel" id="views-panel">
+        <div class="panel-head">
+          <h2>포지션</h2>
+          <span class="grow"></span>
+          <label class="chk"><input type="checkbox" id="pos-closed"> 청산 포함</label>
+          <button id="pos-add-btn">+ 포지션 추가</button>
+        </div>
+        <div class="views-body">
+          <table id="pos-table"></table>
+        </div>
+      </section>
+    </div>
+    <div class="splitter v" data-split="cols"></div>
+    <div id="right">
+      <section class="panel" id="news-panel">
+        <div class="panel-head">
+          <h2>뉴스</h2>
+          <button id="tg-state" class="tg-state" hidden title="텔레그램 연결 방법">텔레그램 미연결</button>
+          <nav class="tabs small" id="news-tabs"></nav>
+          <input type="search" id="news-search" placeholder="검색">
+        </div>
+        <div id="news-list" class="list"></div>
+      </section>
+      <div class="splitter h" data-split="events"></div>
+      <section class="panel" id="events-panel">
+        <div class="panel-head"><h2>매크로 이벤트</h2><span class="hint">향후 4주 · KST</span><span class="grow"></span><button id="ev-add">+ 추가</button></div>
+        <div id="events-list" class="list"></div>
+      </section>
+    </div>
+  </div>
+</div>
+<div id="modal" hidden><div class="modal-card" id="modal-card"></div></div>
+<script src="/static/vendor/echarts.min.js"></script>
+<script type="module" src="/static/app.js"></script>
+</body>
+</html>

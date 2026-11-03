@@ -1,0 +1,102 @@
+# 클라우드 수집기 (SPEC §6, §11). 수집 코드는 로컬과 같은 marketview/collect 한 벌이다.
+#
+#   news      뉴스 RSS 만                              — 장이 열려 있는 시간대 매시간 (평일) + 주말 4시간마다
+#   (장중 스냅샷 수집은 2026-10-14 중단·코드 삭제)
+#   daily     뉴스 + 일별 소스(ECOS·FRED·KRX·smbs·Yahoo 일별, 최근 10일) — 하루 3번
+#
+# 결과는 `cloud-data` 브랜치의 data/cloud/ 에만 커밋한다(코드 히스토리와 분리). 로컬 앱이 git fetch 로 읽어 병합한다.
+# 브랜치는 최근 45일치만 둔다(오래된 날짜 폴더 삭제) + 커밋이 250개를 넘으면 이력을 한 커밋으로 합친다 (2026-10-14).
+# 텔레그램은 여기서 다루지 않는다 (세션·메시지는 클라우드에 올리지 않는다).
+# cron 은 UTC, 몇 분 지연은 정상이다(정각을 피해 17·47분). 기본 브랜치에서만 스케줄이 돈다.
+#
+# (확인 2026-10-10: ubuntu-latest 러너에서 Python 3.14 사용 가능, daily 회차 약 1분 17초)
+# 사용량: 월 약 520회 × 회당 1~2분 ≈ 520~1,040분 (무료 2,000분, 확인 2026-10-10). 실측은 첫 실행 뒤 Settings > Billing.
+
+name: collect
+
+on:
+  # 공개 저장소에서는 스케줄을 끄고 수동 실행만 남겼다. 실제 운영은 비공개 저장소에서 아래 스케줄로 돈다
+  # (Secrets 에 ECOS·FRED·KRX 키가 있어야 한다).
+  #   평일 UTC 00~07시 + 13~21시 매시 17분 (news) / 매일 UTC 23·08·13시 47분 (daily) / 주말 4시간마다 37분 (news)
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "수집 모드"
+        type: choice
+        options: [daily, news]
+        default: daily
+
+# 같은 시각에 두 회차가 겹치면 차례로 (data 브랜치 푸시 충돌 방지). 대기 중인 것은 최신 하나만 남는다.
+concurrency:
+  group: collect
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # API 키는 잡 전체가 아니라 수집 단계에만 준다 (pip install 등 다른 단계의 코드가 키를 볼 수 없게, 2026-10-15)
+    env:
+      PYTHONIOENCODING: utf-8
+      MODE: ${{ github.event.inputs.mode || (github.event.schedule == '47 23,8,13 * * *' && 'daily') || (github.event.schedule == '37 */4 * * 0,6' && 'news') || 'news' }}
+    steps:
+      # Node 20 폐기 경고로 올림 (2026-10-28 확인: checkout 최신 v7.0.1, setup-python 은 v7.1.0 이 10-22 출시라 한 단계 아래 v7.0.0)
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-python@v7.0.0
+        with:
+          python-version: "3.14"
+          cache: pip
+          cache-dependency-path: requirements-cloud.txt
+
+      - run: pip install -r requirements-cloud.txt
+
+      # cloud-data 브랜치를 worktree 로 연다 (없으면 처음 한 번 새로 만든다)
+      - name: Prepare data branch
+        run: |
+          git fetch origin cloud-data || true
+          if git rev-parse --verify --quiet origin/cloud-data >/dev/null; then
+            git worktree add -B cloud-data cloud-data origin/cloud-data
+          else
+            git worktree add --orphan -b cloud-data cloud-data
+          fi
+
+      - name: Collect (${{ env.MODE }})
+        env:
+          ECOS_API_KEY: ${{ secrets.ECOS_API_KEY }}
+          FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
+          KRX_AUTH_KEY: ${{ secrets.KRX_AUTH_KEY }}
+        run: python -m marketview.cloud collect --mode "$MODE" --out cloud-data/data/cloud || echo "COLLECT_FAILED=1" >> "$GITHUB_ENV"
+
+      # 오래된 날짜 폴더(45일 초과)를 지운다. 러너가 매 회차 브랜치 전체를 받으므로 데이터를 무한정 쌓지 않는다 (marketview/cloud_housekeeping.py).
+      # 삭제도 아래 Commit 단계에서 함께 커밋된다. 로컬 앱은 병합한 내용을 로컬 DB 에 영구 보관한다.
+      - name: Prune old days
+        run: python -m marketview.cloud prune --dir cloud-data/data/cloud
+
+      - name: Commit data
+        working-directory: cloud-data
+        run: |
+          git config user.name "marketview-bot"
+          git config user.email "marketview-bot@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "변경 없음"; exit 0; fi
+          git commit -m "cloud: $MODE $(date -u +%Y-%m-%dT%H:%MZ)"
+          for i in 1 2 3; do
+            git push origin cloud-data && exit 0
+            git pull --rebase origin cloud-data
+          done
+          exit 1
+
+      # 커밋이 250개를 넘으면 이력을 한 커밋으로 합쳐 force-push 한다 (--force-with-lease). 이번 수집 결과는 위에서 이미 올라갔으므로
+      # 실패해도 회차는 실패로 보지 않고 다음 회차에 다시 확인한다.
+      - name: Squash history
+        continue-on-error: true
+        run: python -m marketview.cloud squash --repo cloud-data
+
+      # 전부 실패한 회차는 데이터(status.json)를 남긴 뒤 Actions 도 실패로 표시한다
+      - name: Fail if every source failed
+        if: env.COLLECT_FAILED == '1'
+        run: exit 1

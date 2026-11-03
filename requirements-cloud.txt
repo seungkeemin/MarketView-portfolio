@@ -1,0 +1,9 @@
+# GitHub Actions 수집기(marketview.cloud)에 필요한 최소 패키지. 로컬 앱 전체는 requirements.txt.
+# 수집 코드는 httpx + 표준 라이브러리 + tzdata(뉴욕 시각) 만 쓴다. FastAPI·matplotlib·telethon 은 필요 없다.
+anyio==4.15.1
+certifi==2026.7.22
+h11==0.16.0
+httpcore==1.0.9
+httpx==0.28.1
+idna==3.20
+tzdata==2026.5

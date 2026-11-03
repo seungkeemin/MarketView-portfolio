@@ -1,0 +1,13 @@
+﻿.env
+.venv/
+data/*.db
+data/*.db-wal
+data/*.db-shm
+backups/
+exports/
+reports/
+*.session
+*.session-journal
+__pycache__/
+.pytest_cache/
+*.lnk
