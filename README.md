@@ -1,22 +1,14 @@
 # MarketView
 
-> **English summary.** A personal morning market monitor for KRW and USD rates, FX and credit. It puts KTB yields, KRW IRS, KTB futures, UST, USD/KRW and credit spreads on one screen and writes a daily report every weekday. The problem it solves is timing: Korean and US sources publish on different lags, so a naive screen quietly mixes today's and last week's numbers in one spread. MarketView aligns every value to its region's last confirmed close and shows the source and observation date next to each number. About 36,000 daily observations since 2023, 18 daily reports since October 2026.
+> **English summary.** A personal morning market monitor for KRW and USD rates, FX and credit, built for my own daily routine. Features: a four-tab market screen (rates, FX, credit, equities) with tiles that show level, daily change, observation date and source; curve comparison for KTB, KTB futures, KRW IRS and UST against one week and one month ago; spreads and KTB futures implied yields computed on the fly; news from 24 RSS feeds sorted into tabs with full-text search; a macro calendar (FOMC, BOK, US CPI/payrolls/PCE/GDP) converted to Korean time; a paper-position book with entry, target, stop and rationale, using bond convention for rate P&L; and a daily report (Markdown and PDF) generated every weekday, with catch-up for days the app was off. Data is collected locally every 15 minutes and by GitHub Actions while the laptop is off. About 36,000 daily observations since 2023, 18 daily reports since October 2026.
 
-금리·FX·크레딧 시장을 매일 아침 같은 기준으로 점검하려고 만든 개인용 마켓 모니터입니다. 국고채, KRW IRS, 국채선물, UST, USD/KRW, 크레딧 스프레드를 한 화면에 모으고, 평일마다 일일 리포트를 남깁니다.
+금리·FX·크레딧 시장을 매일 아침 점검하려고 만든 개인용 마켓 모니터입니다. 국고채, KRW IRS, 국채선물, UST, USD/KRW, 크레딧 스프레드를 한 화면에 모으고, 평일마다 일일 리포트를 남깁니다.
 
 ![채권 탭: 국고 3·10년과 10−3 스프레드](docs/screenshots/main_bond.png)
 
-## 한눈에 보기
+## 구현한 기능
 
-| | |
-|---|---|
-| **무엇을** | 매일 아침 확인하는 금리·FX·크레딧·주식 지표를 한 화면과 일일 리포트로 정리 |
-| **풀려던 문제** | 소스마다 게시 시점이 달라, 오늘 값과 며칠 전 값이 같은 줄에 섞이면 스프레드와 전일 대비가 틀려도 티가 나지 않음 |
-| **해결** | 한국·미국 권역별로 마지막 확정일을 정하고 같은 날짜의 값끼리만 비교. 숫자마다 출처와 관측일 표시 |
-| **규모** | 지표 81개 정의(57개 자동 수집), 일별 관측치 36,314행(2023-10 ~ 2026-11), 일일 리포트 18건 |
-| **역할** | 볼 지표, 비교 기준, 화면 구성을 직접 정하고 Claude Code로 구현 |
-
-## 매일 아침 보는 것
+### 1. 시장 화면
 
 | 탭 | 지표 | 함께 보는 스프레드 |
 |---|---|---|
@@ -25,25 +17,51 @@
 | 신용 | 회사채 AA-·BBB- 3년, 미국 IG·HY OAS | 회사채 − 국고 3년 |
 | 주식 | KOSPI, KOSDAQ, S&P 500, NASDAQ, Russell 2000, VIX | |
 
-커브는 기준일, 1주 전, 1개월 전을 겹쳐 그리고 아래에 구간별 bp 변화를 붙였습니다. 오른쪽에는 탭별로 분류한 뉴스와 FOMC·금통위·미국 지표 일정(D-day, 한국 시각)을 둡니다.
+- 탭은 키보드 1~4로 넘깁니다. 타일마다 레벨, 전일 대비(금리는 bp), 관측일, 출처를 보여 줍니다.
+- 타일을 누르면 아래 차트에 겹쳐 그리고, 단위가 다르면 오른쪽 보조축을 씁니다. 기간은 1M부터 전체까지 고릅니다.
+- 차트 아래 데이터 표에서 같은 값을 숫자로 보고 CSV로 내보냅니다.
+- 기준일을 과거 날짜로 바꾸면 시세와 뉴스가 그날 기준으로 다시 그려집니다.
+- 한국과 미국은 게시 시점이 달라, 권역마다 마지막 확정일 기준으로 값을 보여 주고 화면 오른쪽 위에 `KR 11.02 US 10.30`처럼 표시합니다.
 
-| 국고채 커브 (기준일 / 1주 전 / 1개월 전, 아래는 bp 변화) | KRW IRS 커브 |
+![외환 탭](docs/screenshots/fx.png)
+
+### 2. 커브 비교
+
+국고채, 국채선물 내재수익률, KRW IRS, UST 커브를 기준일·1주 전·1개월 전으로 겹쳐 그리고, 아래에 만기별 bp 변화를 막대로 붙였습니다. 비교일은 바꿀 수 있습니다.
+
+| 국고채 커브 | KRW IRS 커브 |
 |---|---|
 | ![국고채 커브](docs/screenshots/ktb_curve.png) | ![KRW IRS 커브](docs/screenshots/irs_curve.png) |
 
-## 핵심 문제: 같은 날짜의 숫자끼리 비교하기
+### 3. 스프레드와 국채선물 내재수익률
 
-![소스별 최신 관측일](docs/figures/data_timing.png)
+- 스프레드는 저장하지 않고 화면을 그릴 때 계산합니다. 두 값의 관측일이 같을 때만 계산하고, 하나라도 없으면 0이나 전일 값으로 채우지 않고 "미수집"으로 띄웁니다.
+- 국채선물 가격에서 표면금리 5%, 6개월 이표 표준물 기준으로 내재수익률을 역산합니다. 명세는 KRX 공식 상품명세로 대조했습니다. 국채선물은 현금결제라 CTD가 없고, 이 수익률은 기초채권 바스켓의 평균수익률과 비교할 값입니다. 3년물 기준 국고 지표물과의 차이는 10월 초 약 12bp에서 10/30 약 4bp로 줄었습니다.
 
-2026-11-02(월) 아침에 만든 리포트입니다. 한국 소스는 10/30(금)이 마지막 값이고, FRED의 미 국채는 10/29(목)까지만 올라와 있었습니다. 소스마다 가장 최신 값을 그냥 띄우면 서로 다른 날의 숫자가 한 화면에서 비교됩니다. 한국과 미국을 하나의 날짜로 맞추면 늦게 올라오는 미국에 맞추느라 한국의 최신 값을 버려야 합니다.
+### 4. 뉴스와 리서치
 
-그래서 권역별 마감일을 씁니다. 한국 지표는 한국 마감일, 미국 지표는 미국 마감일 기준으로 보여 주고, 그보다 오래된 값은 날짜를 굵게 표시합니다. 스프레드는 두 값의 관측일이 같을 때만 계산합니다. 값을 받지 못하면 0이나 전일 값으로 채우지 않고 "미수집"으로 띄웁니다.
+- RSS 24개(국내 경제지, 연합인포맥스, CNBC, 연준·ECB·한국은행 보도자료 등)를 15분마다 받습니다.
+- 제목과 요약의 키워드로 채권·외환·신용·주식 탭에 자동 분류하고, 여러 피드에 같은 기사가 오면 하나만 보여 줍니다. "위안"이 위안부 기사를 외환으로 보내는 식의 오분류는 실제 기사로 찾아 키워드를 고쳤습니다.
+- 전체 기간 검색(단어 중간 일치), 읽음 표시, 관심 키워드 하이라이트를 넣었습니다.
+- 구독 중인 증권사 리서치 텔레그램 채널을 읽기 전용으로 받아 탭별로 함께 보여 줍니다.
 
-## 일일 리포트
+### 5. 매크로 이벤트
 
-평일 07:30 이후 앱이 켜지면 리포트(Markdown·PDF)를 자동으로 만들고 Google Drive에 복사합니다. 앱이 꺼져 있던 날은 다음 실행 때 그날 종가 기준으로 따라잡습니다.
+- FOMC, 금통위, 미국 CPI·고용·PCE·GDP 일정을 공식 출처(연준, 한국은행, FRED)에서 받아 D-day로 보여 줍니다.
+- 미국 발표 시각은 서머타임과 날짜 넘김을 반영해 한국 시각으로 바꿉니다. 11/6 08:30 ET 고용보고서는 22:30 KST로 표시됩니다.
+- 컨센서스, 메모, 중요도는 직접 입력하고, 일정이 다시 동기화돼도 입력한 내용은 남습니다. 국고채 입찰일처럼 자동 소스가 없는 일정은 직접 추가합니다.
 
-리포트에는 탭별 요약 표, 커브·스프레드 차트 6개, 탭별 뉴스와 증권사 리서치 채널 제목, 2주 안의 이벤트, 페이퍼 포지션, 데이터 출처와 수집 실패 목록이 들어갑니다. 아래는 2026-11-02 리포트의 국고채 부분입니다.
+### 6. 페이퍼 포지션
+
+- 상품, 방향, 진입 레벨·날짜, 목표, 손절, 근거를 적어 두면 연결된 시세로 손익을 자동 계산합니다. 손익 단위는 금리 bp, 스프레드 bp, 환율 원, 지수 pt입니다.
+- 금리 항목은 채권 관행을 따릅니다. "국고 10년 롱"은 채권 롱이고 금리가 내려야 이익입니다. 스프레드, 가격, 환율은 레벨 기준입니다. 손익, 목표·손절 경고, 리포트 문구가 모두 이 규칙 하나를 따릅니다.
+- 청산하면 확정 손익으로 남기고, 모든 변경은 이력으로 쌓입니다.
+
+### 7. 일일 리포트
+
+평일 07:30 이후 앱이 켜지면 리포트(Markdown·PDF)를 자동으로 만들고 Google Drive에 복사합니다. 앱이 꺼져 있던 평일은 다음 실행 때 그날 종가 기준으로 따라잡습니다. 지난 날짜 리포트는 그 날짜까지의 종가와 그 시점의 포지션으로 만듭니다.
+
+리포트에는 탭별 요약 표, 차트 6개(국고·UST 커브, 주요 스프레드, 신용 스프레드, FX, 주가지수), 탭별 뉴스와 리서치 채널 제목, 2주 안의 이벤트, 포지션, 데이터 출처와 수집 실패 목록이 들어갑니다. 아래는 2026-11-02 리포트의 일부입니다.
 
 > 데이터 기준: 국내 2026-10-30 / 미국 2026-10-29
 >
@@ -57,15 +75,12 @@
 > | KRW IRS 5년 | 3.7825% | −4.7bp | 2026-10-30 | 서울외국환중개 |
 > | UST 10년 | 4.98% | −7.0bp | 2026-10-29 | FRED |
 
-## 트레이딩 관점에서 정한 규칙
+### 8. 데이터 수집과 보관
 
-**포지션 손익의 방향.** 금리 항목은 채권 관행을 따릅니다. "국고 10년 롱"은 채권 롱이고 금리가 내려야 이익입니다. 스프레드, 가격, 환율은 레벨 기준입니다. 금리를 레벨 기준으로 두면 "국고 10년 롱"이 금리 상승 베팅으로 읽히기 때문입니다. 페이퍼 포지션의 손익, 목표·손절 경고, 리포트 문구가 모두 이 규칙 하나를 따릅니다.
-
-**국채선물 내재수익률.** 선물 가격에서 표면금리 5%, 6개월 이표 표준물 기준으로 수익률을 역산합니다. 국채선물은 현금결제라 CTD가 없고, 이 수익률은 기초채권 바스켓의 평균수익률과 비교할 값입니다. 국고 지표물과는 바스켓 만기 구성과 캐리만큼 차이가 납니다. 3년물 기준 이 차이는 10월 초 약 12bp에서 10/30 약 4bp로 줄었습니다.
-
-**KRW IRS 출처.** 서울외국환중개 IRS 표의 Mid를 씁니다. 과거 날짜 조회가 되는 것을 확인해 1년치를 채웠습니다.
-
-**무료 소스가 없는 지표.** 한국 CDS 5Y와 USD/KRW NDF 1M은 무료 API가 없습니다. 화면에서 빼지 않고 "소스 없음 · 수동 입력"으로 띄워, 무엇을 못 보고 있는지 알 수 있게 했습니다.
+- 앱이 켜져 있으면 15분마다 ECOS, FRED, KRX, 서울외국환중개, Yahoo, RSS에서 받습니다. 처음 실행하면 소스마다 가능한 기간(최대 3년)을 채웁니다.
+- 노트북이 꺼진 시간에는 GitHub Actions가 같은 수집 코드로 뉴스처럼 나중에 다시 구할 수 없는 것을 받아 두고, 앱이 켜지면 합칩니다.
+- 한국 CDS 5Y, USD/KRW NDF 1M처럼 무료 소스가 없는 지표는 화면에서 빼지 않고 "소스 없음 · 수동 입력"으로 띄웁니다. 입력 폼이나 표 붙여넣기로 넣고, 자동 수집이 덮어쓰지 않습니다.
+- 매일 DB를 백업하고(일일 30개, 월말 영구, 주간 CSV) Drive에 복사합니다. 실제 DB로 백업 → 복원 → 표별 행 수 비교까지 시험했습니다.
 
 ## 운영 기록
 
@@ -84,7 +99,7 @@
 - 국내 크레딧은 회사채 AA-·BBB- 3년만 자동 수집합니다. 은행채·여전채 같은 섹터 스프레드는 무료 API가 없어 넣지 않았습니다.
 - 한국 공휴일 달력이 없어 휴장일 평일에도 리포트가 생성됩니다(값은 직전 영업일).
 - 국채선물은 거래량이 가장 많은 월물을 쓰므로 월물 교체일에 가격과 내재수익률이 불연속으로 움직입니다.
-- 노트북이 꺼진 동안 뉴스는 GitHub Actions가 받는데, 무료 스케줄이 늦게 돌아 간격이 약 4시간입니다.
+- 노트북이 꺼진 동안 뉴스 수집 간격은 무료 GitHub Actions 스케줄 때문에 약 4시간입니다.
 
 ## 만든 과정
 
@@ -136,7 +151,9 @@ marketview/
 ├── ingest.py     일별 수집·백필, 빈 구간 재수집
 ├── queries.py    타일·시계열·커브 조회, 권역 마감일 (common_close_dates)
 ├── derived.py    파생 스프레드 레지스트리 (관측일이 같은 값끼리만 계산)
-├── futures.py    국채선물 내재수익률 (KRX 공식 상품명세로 대조)
+├── futures.py    국채선물 내재수익률
+├── events.py     이벤트 동기화, 현지 시각 → KST
+├── news.py       뉴스 분류·중복 제거·검색
 ├── userdata.py   이벤트·포지션 (append-only 이력, profit_sign)
 ├── report/       일일 리포트 생성, 자동 생성·따라잡기
 ├── backup.py     VACUUM INTO 스냅샷 → 무결성 검사 → gzip, 복원
@@ -144,8 +161,6 @@ marketview/
 migrations/       001~005 SQL
 tests/            253개, 네트워크 없이 저장된 응답과 임시 DB로 돈다
 ```
-
-**노트북이 꺼져 있을 때.** 일별 시세는 소스가 과거를 보관하므로 앱이 켜질 때 로컬이 백필합니다. 나중에 다시 구할 수 없는 것(뉴스, 당일 값만 보이는 페이지)만 GitHub Actions가 같은 수집 코드로 받아 별도 브랜치에 커밋하고, 로컬 앱이 읽기 전용으로 병합합니다. 같은 파일을 여러 번 합쳐도 결과가 같습니다.
 
 ### 실행 방법
 
@@ -158,7 +173,7 @@ copy .env.example .env          # ECOS·FRED·KRX 키. 비어 있으면 그 소�
 .venv\Scripts\python -m uvicorn marketview.app:app --host 127.0.0.1 --port 8790
 ```
 
-`127.0.0.1:8790`을 엽니다. 처음 실행하면 소스별로 가능한 기간을 백필합니다. 바탕화면 아이콘은 `scripts\install_shortcut.ps1`로 만듭니다.
+`127.0.0.1:8790`을 엽니다. 바탕화면 아이콘은 `scripts\install_shortcut.ps1`로 만듭니다.
 
 ```
 .venv\Scripts\python -m pytest -q
@@ -181,7 +196,6 @@ copy .env.example .env          # ECOS·FRED·KRX 키. 비어 있으면 그 소�
 
 - 소스 코드는 실제 호출로 확인한 것만 넣고 확인일을 주석에 남겼습니다.
 - 수집기·파서 테스트는 저장된 응답으로 네트워크 없이 돕니다. 병합은 같은 입력을 두 번 넣어도 결과가 같은지, 수동 입력값을 자동 수집이 덮지 않는지 테스트합니다.
-- 백업은 실제 DB로 백업 → 복원 → 표별 행 수 비교까지 해 봤습니다.
 - 공개 전에 저장소 전체에서 API 키·토큰·개인 경로를 검색했습니다.
 
 </details>
