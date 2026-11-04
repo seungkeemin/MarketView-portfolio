@@ -33,7 +33,7 @@
 | GitHub CLI (gh) | 없음 → Phase 8에서 설치 승인 요청 |
 | winget | 있음 |
 | Chrome | `C:\Program Files\Google\Chrome\Application\chrome.exe` 있음 |
-| Google Drive 동기화 | `G:\내 드라이브` 존재. 확정 경로 `G:\내 드라이브\MarketView\{reports,backups}` (생성 완료, §13) |
+| Google Drive 동기화 | Drive 폴더 존재. 확정 경로 `<Drive>\MarketView\{reports,backups}` (생성 완료, §13) |
 | 옵시디언 볼트 | 로컬 옵시디언 볼트 (선택 기능, 기본 꺼짐) |
 | ficc-desk/data/ficc.db | 1,013행 · 41필드 · 2026-08-07~2026-10-09. API 백필이 우선, 이 DB는 보조 import 후보 |
 | ficc-desk requirements.txt / .env.example | 한글 주석 인코딩이 깨져 읽힘 → 복사하지 않고 새로 작성 |
@@ -239,7 +239,7 @@ CREATE TABLE report_run (id INTEGER PRIMARY KEY, report_date TEXT, version INTEG
 ## 7. 데이터 출처·관측일·수집 실패
 ```
 
-규칙: 같은 날짜 재생성은 덮어쓰지 않고 `-v2`, `-v3`… (`report_run`에 기록). 노트북이 꺼졌던 날은 다음 기동 시 백필 후 날짜별로 생성. 실패해도 수집·화면은 계속. 로컬 → `G:\내 드라이브\MarketView\reports\YYYY\MM\` 복사(실패해도 로컬은 완료, 상단 바 표시). 옵시디언 복사는 선택·기본 꺼짐(삭제 금지, `.obsidian` 접근 금지).
+규칙: 같은 날짜 재생성은 덮어쓰지 않고 `-v2`, `-v3`… (`report_run`에 기록). 노트북이 꺼졌던 날은 다음 기동 시 백필 후 날짜별로 생성. 실패해도 수집·화면은 계속. 로컬 → `<Drive>\MarketView\reports\YYYY\MM\` 복사(실패해도 로컬은 완료, 상단 바 표시). 옵시디언 복사는 선택·기본 꺼짐(삭제 금지, `.obsidian` 접근 금지).
 
 ## 10. 저장·보관·백업
 
@@ -292,7 +292,7 @@ CREATE TABLE report_run (id INTEGER PRIMARY KEY, report_date TEXT, version INTEG
 ## 13. 결정 사항 (2026-10-09 사용자 답변 반영)
 
 1. **불편했던 점**: 사용자가 설계에 이미 반영했다고 함 → 별도 기재 없음.
-2. **Drive 경로 확정**: `G:\내 드라이브\MarketView\` 폴더를 만들고 그 아래 `reports\`, `backups\`로 정리 (2026-10-09 생성 완료). 설정 파일의 Drive 경로는 `G:\내 드라이브\MarketView`.
+2. **Drive 경로 확정**: `<Drive>\MarketView\` 폴더를 만들고 그 아래 `reports\`, `backups\`로 정리 (2026-10-09 생성 완료). 설정 파일의 Drive 경로는 `<Drive>\MarketView`.
 3. **NDF 1M**: **수동 입력 유지** (파생 대체 안 함).
 4. **PDF·차트 도구**: **승인** — 차트 PNG는 matplotlib, PDF는 Chrome 헤드리스 print-to-PDF.
 5. **옵시디언 복사**: **보류** (나중에 결정, 기본 꺼짐, 지금은 구현하지 않음).
@@ -382,7 +382,7 @@ CREATE TABLE report_run (id INTEGER PRIMARY KEY, report_date TEXT, version INTEG
 - 파일: `reports/YYYY/MM/YYYY-MM-DD[-vN].md|pdf` + `assets/<stem>_<이름>.png`. 같은 날짜 재생성은 `-v2`… (DB 행뿐 아니라 **디스크에 파일이 있어도** 덮어쓰지 않음). `report_run` 에 md/pdf 경로·PDF 상태·Drive 상태·실패 사유 기록.
 - 실패 격리: PDF 실패 → Markdown 유지, Drive 폴더 없음/복사 실패 → 로컬 완료 + `drive_status=failed`(없는 Drive 폴더를 만들어내지 않음). pytest 로 검증.
 - 실행 증거(2026-10-10, 실제 DB 의 **복사본** + 임시 reports/Drive 폴더): 생성 8~14초, PDF 1.2MB, 한글 폰트 `MalgunGothic` 임베드 확인, v1→v2 버전 분리, 임시 Drive 폴더로 md·pdf·assets 복사. 캡처: `docs/screenshots/phase6_*.png` (PDF 원본 HTML 을 Chrome 으로 렌더한 것 + 차트 PNG).
-- 설정: Drive 경로 기본 `G:\내 드라이브\MarketView`(환경변수 `MARKETVIEW_DRIVE_ROOT` 로 변경), reports 위치 `MARKETVIEW_REPORTS_DIR`(시험용). 텔레그램 포함 여부는 `app_setting.report_telegram`(기본 on).
+- 설정: Drive 경로 기본 `<Drive>\MarketView`(환경변수 `MARKETVIEW_DRIVE_ROOT` 로 변경), reports 위치 `MARKETVIEW_REPORTS_DIR`(시험용). 텔레그램 포함 여부는 `app_setting.report_telegram`(기본 on).
 
 ### Phase 7 결과 — 런처·백업·CSV·복원 (2026-10-10)
 - 런처: `scripts/start.bat`(ASCII) → `start.ps1`(UTF-8 BOM) → 서버(8790) 확인·기동 → Chrome `--app`. `install_shortcut.ps1` 이 바탕화면과 저장소 루트에 `MarketView.lnk` 생성(아이콘 `make_icon.py` 가 표준 라이브러리로 생성). 실행 증거: 아이콘 실행 6초에 HTTP 200·Chrome 창 "MarketView", 두 번째 실행에서 리슨 포트 1개 유지.
