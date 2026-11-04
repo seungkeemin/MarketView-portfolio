@@ -45,7 +45,7 @@ def env(key: str, default: str = "") -> str:
 
 def drive_root() -> Path:
     """Google Drive 동기화 폴더 안의 MarketView 폴더 (확정 2026-10-09). 없으면 만들지 않고 복사를 실패로 기록한다."""
-    return Path(env("MARKETVIEW_DRIVE_ROOT", r"G:\내 드라이브\MarketView"))
+    return Path(env("MARKETVIEW_DRIVE_ROOT", str(Path.home() / "GoogleDrive" / "MarketView")))
 
 
 def backups_dir() -> Path:
